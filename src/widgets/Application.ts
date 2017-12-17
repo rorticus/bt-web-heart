@@ -1,24 +1,21 @@
-import {v} from '@dojo/widget-core/d';
+import {v, w} from '@dojo/widget-core/d';
 import {ThemeableMixin, theme} from '@dojo/widget-core/mixins/Themeable';
 import {WidgetBase} from '@dojo/widget-core/WidgetBase';
+import {HeartRateDisplay} from './HeartRateDisplay';
 
 import * as css from './styles/Application.m.css';
-import HeartRateMonitor from "../services/HeartRateMonitor";
+import HeartRateMonitor, {HeartRateMonitorConnectionState} from "../services/HeartRateMonitor";
 
 const monitor = new HeartRateMonitor();
 
 @theme(css)
-export class HelloWorld extends ThemeableMixin(WidgetBase) {
+export class Application extends ThemeableMixin(WidgetBase) {
     private _lastHeartRate: number = 0;
     private _connected = false;
+    private _connecting = false;
 
     constructor() {
         super();
-
-        monitor.connected.subscribe(connected => {
-            this._connected = connected;
-            this.invalidate();
-        });
 
         monitor.heartRate.subscribe(heartRate => {
             this._lastHeartRate = heartRate;
@@ -27,7 +24,24 @@ export class HelloWorld extends ThemeableMixin(WidgetBase) {
     }
 
     connect() {
-        monitor.connect();
+        monitor.connect().subscribe(state => {
+            if (state === HeartRateMonitorConnectionState.Connecting) {
+                this._connecting = true;
+                this.invalidate();
+            } else if (state === HeartRateMonitorConnectionState.Connected) {
+                this._connecting = false;
+                this._connected = true;
+                this.invalidate();
+            }
+        }, e => {
+            this._connecting = false;
+            this._connected = false;
+            this.invalidate();
+            alert(e);
+        }, () => {
+            this._connected = false;
+            this.invalidate();
+        });
     }
 
     protected render() {
@@ -37,20 +51,34 @@ export class HelloWorld extends ThemeableMixin(WidgetBase) {
     }
 
     protected renderDisconnected() {
-        return v('section', { key: 'disconnected', classes: this.classes(css.section) }, [
-            v('div', { classes: this.classes(css.heart) }, [
-                v('button', {classes: this.classes(css.label, css.button), onclick: this.connect}, ['Connect'])
-            ])
+        let connecting = [];
+
+        if (this._connecting) {
+            connecting = [
+                v('div', {classes: this.classes(css.connectionContainer)}, [
+                    v('div', {classes: this.classes(css.loader)}, []),
+                    v('div', {classes: this.classes(css.message)}, ['Connecting...'])
+                ])
+            ];
+        } else {
+            connecting = [
+                v('div', {classes: this.classes(css.connectionContainer)}, [
+                    v('div', {classes: this.classes(css.message)}, ['Click the heart to connect to your heart rate monitor.'])
+                ])
+            ];
+        }
+
+        return v('section', {key: 'disconnected', classes: this.classes(css.section)}, [
+            ...connecting,
+            v('div', {classes: this.classes(css.heart, css.clickable), onclick: this.connect}, [])
         ]);
     }
 
     protected renderConnected() {
-        return v('section', { key: 'connected', classes: this.classes(css.section) }, [
-            v('div', { classes: this.classes(css.heartRate) }, [
-                String(this._lastHeartRate)
-            ])
+        return v('section', {key: 'connected', classes: this.classes(css.section)}, [
+            w(HeartRateDisplay, {heartRate: this._lastHeartRate})
         ]);
     }
 }
 
-export default HelloWorld;
+export default Application;

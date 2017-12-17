@@ -1,4 +1,11 @@
 import Subject from '../Subject';
+import Observable from "@dojo/core/Observable";
+
+export enum HeartRateMonitorConnectionState {
+    LookingForDevice = 0,
+    Connecting,
+    Connected
+}
 
 function parseHeartRate(value: any) {
     // In Chrome 50+, a DataView is returned instead of an ArrayBuffer.
@@ -36,23 +43,13 @@ function parseHeartRate(value: any) {
 }
 
 export default class HeartRateMonitor {
-    private _connection = new Subject<boolean>();
     private _values = new Subject<number>();
-    private _errors = new Subject<string>();
 
     constructor() {
     }
 
-    private onDisconnect() {
-        this._connection.next(false);
-    }
-
     private onUpdate(event: any) {
         this._values.next(parseHeartRate(event.target.value).heartRate);
-    }
-
-    get connected() {
-        return this._connection.asObservable();
     }
 
     get heartRate() {
@@ -60,24 +57,30 @@ export default class HeartRateMonitor {
     }
 
     connect() {
-        navigator.bluetooth.requestDevice({
-            filters: [{services: [0x180D]}]
-        }).then(device => {
-            device.addEventListener('gattserverdisconnected', this.onDisconnect.bind(this));
+        return new Observable<HeartRateMonitorConnectionState>(subscription => {
+            subscription.next(HeartRateMonitorConnectionState.LookingForDevice);
 
-            return device.gatt!.connect();
-        }).then(server => {
-            return server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
-        }).then(service => {
-            return service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
-        }).then(characteristic => {
-            return characteristic.startNotifications();
-        }).then((characteristic) => {
-            characteristic.addEventListener('characteristicvaluechanged', this.onUpdate.bind(this));
+            navigator.bluetooth.requestDevice({
+                filters: [{services: [0x180D]}]
+            }).then(device => {
+                device.addEventListener('gattserverdisconnected', () => {
+                    subscription.complete();
+                });
 
-            this._connection.next(true);
-        }).catch(e => {
-            this._errors.next(e);
+                subscription.next(HeartRateMonitorConnectionState.Connecting);
+                return device.gatt!.connect();
+            }).then(server => {
+                return server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+            }).then(service => {
+                return service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+            }).then(characteristic => {
+                return characteristic.startNotifications();
+            }).then((characteristic) => {
+                characteristic.addEventListener('characteristicvaluechanged', this.onUpdate.bind(this));
+                subscription.next(HeartRateMonitorConnectionState.Connected);
+            }).catch(e => {
+                subscription.error(e);
+            });
         });
     }
 }

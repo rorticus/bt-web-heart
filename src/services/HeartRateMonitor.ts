@@ -57,30 +57,34 @@ export default class HeartRateMonitor {
     }
 
     connect() {
+        const self = this;
+
         return new Observable<HeartRateMonitorConnectionState>(subscription => {
             subscription.next(HeartRateMonitorConnectionState.LookingForDevice);
 
-            navigator.bluetooth.requestDevice({
-                filters: [{services: [0x180D]}]
-            }).then(device => {
-                device.addEventListener('gattserverdisconnected', () => {
-                    subscription.complete();
-                });
+            (async function() {
+                try {
+                    const device = await navigator.bluetooth.requestDevice({
+                        filters: [{services: [0x180D]}]
+                    });
 
-                subscription.next(HeartRateMonitorConnectionState.Connecting);
-                return device.gatt!.connect();
-            }).then(server => {
-                return server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
-            }).then(service => {
-                return service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
-            }).then(characteristic => {
-                return characteristic.startNotifications();
-            }).then((characteristic) => {
-                characteristic.addEventListener('characteristicvaluechanged', this.onUpdate.bind(this));
-                subscription.next(HeartRateMonitorConnectionState.Connected);
-            }).catch(e => {
-                subscription.error(e);
-            });
+                    device.addEventListener('gattserverdisconnected', () => {
+                        subscription.complete();
+                    });
+
+                    subscription.next(HeartRateMonitorConnectionState.Connecting);
+
+                    const server = await device.gatt!.connect();
+                    const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+                    const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+                    await characteristic.startNotifications();
+
+                    characteristic.addEventListener('characteristicvaluechanged', self.onUpdate.bind(self));
+                    subscription.next(HeartRateMonitorConnectionState.Connected);
+                } catch (e) {
+                    subscription.error(e);
+                }
+            })();
         });
     }
 }

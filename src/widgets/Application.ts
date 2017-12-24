@@ -5,6 +5,7 @@ import {HeartRateDisplay} from './HeartRateDisplay';
 
 import * as css from './styles/Application.m.css';
 import HeartRateMonitor, {HeartRateMonitorConnectionState} from "../services/HeartRateMonitor";
+import EKGDisplay from "./EKGDisplay";
 
 const monitor = new HeartRateMonitor();
 
@@ -19,6 +20,7 @@ export class Application extends ThemeableMixin(WidgetBase) {
 
         monitor.heartRate.subscribe(heartRate => {
             this._lastHeartRate = heartRate;
+            console.log(heartRate);
             this.invalidate();
         });
     }
@@ -76,7 +78,8 @@ export class Application extends ThemeableMixin(WidgetBase) {
 
     protected renderConnected() {
         return v('section', {key: 'connected', classes: this.classes(css.section)}, [
-            w(HeartRateDisplay, {heartRate: this._lastHeartRate})
+            w(HeartRateDisplay, {heartRate: this._lastHeartRate}),
+            w(EKGDisplay, { heartRate: this._lastHeartRate })
         ]);
     }
 }

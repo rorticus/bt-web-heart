@@ -23,6 +23,17 @@
 
 ---
 
+## Why?
+### Allow a web page to...
+
+- Connect to sensors
+- Connect to home devices
+- Connect to your phone
+
+Not just web pages, but Electron too!
+
+---
+
 ## GATT
 
 GATT (General Attribute Profile) defines a protocol for many devices to communicate.

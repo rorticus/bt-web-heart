@@ -1,10 +1,23 @@
-# Web Bluetooth
+# ![100%](https://logoeps.com/wp-content/uploads/2011/08/bluetooth-logo-vector.png)
+
+#[fit]  Web Bluetooth
 ## What the heart wants :heart:
 
 ---
 
-## How is it different?
-### Bluetooth 2
+##[fit] Why?
+
+![left](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUs-w-SHFMutxLjf5CIlplF5flYUk8yaRL1gXPO2fj7bpcccSzxw)
+
+- Connect to sensors
+- Connect to home devices
+- Connect to your phone
+
+> Not just web pages, but Electron too!
+
+---
+
+##[fit] Bluetooth 2/3
 
 - Profiles were confusing. Most people just used SPP (serial port profile)
 - Painful pairing process
@@ -13,28 +26,17 @@
 
 ---
 
-## How is it different?
-### Bluetooth 4 LE
+##[fit] Bluetooth 4 LE
+### (or **BTLE**)
 
-- Uses much less energy
+- Uses *much* less energy
 - Pairing is easy
 - Tons of new profiles
 - Can connect with iOS!
 
 ---
 
-## Why?
-### Allow a web page to...
-
-- Connect to sensors
-- Connect to home devices
-- Connect to your phone
-
-Not just web pages, but Electron too!
-
----
-
-## GATT
+##[fit] GATT
 
 GATT (General Attribute Profile) defines a protocol for many devices to communicate.
 
@@ -45,156 +47,200 @@ GATT servers must provide:
 
 ---
 
-### Characteristics
+###[fit] Services
+> A collection of related characteristics.
 
-A characteristic is a single value that can be read/written.
+- *Primary* services are directly related to the device's purpose.
+- *Secondary* services are extra.
 
-### Services
+A heart rate monitor might have a primary heart rate service, and a secondary battery level service.
 
-A collection of characteristics
-
----
-
-### GATT Services
-
-There are dozens of [pre-defined GATT services](https://www.bluetooth.com/specifications/gatt/services).
-
-- Battery level
-- Sensors: blood pressure, weight, heart rate, HID, cycling metrics, temperature
-- Data transfer
-
-Plus you can make your own custom profiles over GATT
+There are dozens of [pre-defined GATT services](https://www.bluetooth.com/specifications/gatt/services): battery levels, sensor values, data transfer, etc.
 
 ---
 
-# Bluetooth in the Browser
-##[fit] `navigator.bluetooth`
+###[fit] Characteristics
+
+- A characteristic is a single data value that can be read/written.
+- A [number of different formats](https://www.bluetooth.com/specifications/assigned-numbers/format-types) (ints, floats, strings, structs).
+- [Declarations](https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.attribute.gatt.characteristic_declaration.xml) describe how a characteristic is used.
+  - **Write** - can be written to
+  - **Read** - can be read any time
+  - **Notify** - broadcasts new values (lowest power)
 
 ---
 
-
-
-## Web Bluetooth API
+##[fit] Web Bluetooth API
 
 - The [web bluetooth API](https://webbluetoothcg.github.io/web-bluetooth/) is a WIP proposal, only really available in Chrome.
 - From the browser you can connect connect to and communicate with BTLE devices.
+- Promise based, great for `async/await`!
 
 ---
 
 
+#[fit] Web Bluetooth API
+
+```typescript
+const device = await navigator.bluetooth.requestDevice({
+    filters: [{services: [0x180D]}]
+});
+
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+await characteristic.startNotifications();
+
+characteristic.addEventListener('characteristicvaluechanged', parseHeartRate);
+```
+
+---
 
 #[fit] DEMO
 
 ---
 
+##[fit] Requesting Devices 
 
-
-## Requesting Devices
-
-### [fit]`navigator.bluetooth.requestDevice`
-
-Connect to a bTLE device.
-
-- Must be a result of a click event.
-- Can pass in filters to find devices with specific names or services.
-- Returns a `Promise` to the chosen device.
-
----
-
-## Requesting Devices
-
-```typescript
+```typescript, [.highlight: 1-3]
 const device = await navigator.bluetooth.requestDevice({
-  filters: [
-    { service: 'heart_rate' }
-  ]
+    filters: [{services: [0x180D]}]
 });
+
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+await characteristic.startNotifications();
+
+characteristic.addEventListener('characteristicvaluechanged', parseHeartRate);
 ```
 
-- Will throw an error if user clicks cancel
+- Must be the result of a click.
 
 ---
 
-## Specify GATT
+##[fit] Connect to GATT
+
+```typescript, [.highlight: 5]
+const device = await navigator.bluetooth.requestDevice({
+    filters: [{services: [0x180D]}]
+});
+
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+await characteristic.startNotifications();
+
+characteristic.addEventListener('characteristicvaluechanged', parseHeartRate);
+```
 
 After getting a device, you need to specify you want to use GATT.
 
-```typescript
-const server = await device.getGATTServer();
-```
-
 ---
 
-## Get a Service
+##[fit] Get a Service
+
+```typescript, [.highlight: 6]
+const device = await navigator.bluetooth.requestDevice({
+    filters: [{services: [0x180D]}]
+});
+
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+await characteristic.startNotifications();
+
+characteristic.addEventListener('characteristicvaluechanged', parseHeartRate);
+```
 
 With the GATT server, you can list the services, or get a particular service.
 
-```typescript
-const heartRateService = await server.getService('heart_rate');
-```
-
 ---
 
-## Get Characteristics
+##[fit] Get Characteristics
+
+```typescript, [.highlight: 7]
+const device = await navigator.bluetooth.requestDevice({
+    filters: [{services: [0x180D]}]
+});
+
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+await characteristic.startNotifications();
+
+characteristic.addEventListener('characteristicvaluechanged', parseHeartRate);
+```
 
 With a service, you can list available characteristics, or get a particular characteristic.
 
-```typescript
-const heartRateCharacteristic = await service.getCharacteristic('0x180d');
+---
+
+##[fit] Retrieving Values
+
+```typescript, [.highlight: 8-10]
+const device = await navigator.bluetooth.requestDevice({
+    filters: [{services: [0x180D]}]
+});
+
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+await characteristic.startNotifications();
+
+characteristic.addEventListener('characteristicvaluechanged', parseHeartRate);
 ```
 
----
+This is a **notify** characteristic, so new values are pushed out.
 
-## Read/Write/Notify
-
-With a characteristic you can
-
-- *Read* values
-- *Write* values
-- Get *Notified* of value changes
-
-A characteristic can support any of these. For example the heart rate characteristic cannot be read or written, but can be listened to.
+This saves energy because the BTLE client does not have to poll for changes, the server will send them out.
 
 ---
 
-### Read
-#### Read the current value of a characteristic
+##[fit] Retrieving Values
 
-```typescript
-const value = await batteryLevel.value();
+```typescript, [.highlight: 8]
+const device = await navigator.bluetooth.requestDevice({
+    filters: [{services: [0x180D]}]
+});
+
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+const value = await characteristic.readValue();
 ```
 
-For example you could read the current value of the battery level of a device.
+This is a **read** value, allowing you to retreive the current value.
 
 ---
 
-### Write
+##[fit] Write
 
-```typescript
-await batteryLevel.write('123');
-```
----
+```typescript, [.highlight: 8]
+const device = await navigator.bluetooth.requestDevice({
+    filters: [{services: [0x180D]}]
+});
 
-### Notify
-
-Be notified of value changes. This saves energy because the BT client does not have to poll for changes, the server will send them out.
-
-```typescript
-heartRateCharacteristic.addEventListener('characteristicvaluechanged', event => {
-  doSomethingWith(event.target.value);
-})
+const server = await device.gatt!.connect();
+const service = await server.getPrimaryService("0000180d-0000-1000-8000-00805f9b34fb");
+const characteristic = await service.getCharacteristic("00002a37-0000-1000-8000-00805f9b34fb");
+const value = await characteristic.writeValue(12);
 ```
 
----
+This is a **write** value, allowing you to write new values.
+
+------
 
 #[fit] What's Next
-## For Web Bluetooth
+## for Web Bluetooth
+
+- Better browser support.
+- Better Stability - it's a little crashy right now.
+- Automatically connect to previously connected devices.
 
 ---
+#[fit] What's Next
+## for **You**
 
-#[fit] What's next for Web Bluetooth
-
-- Better browser support
-- Better Stability
-- Connect to previouslly connected devices
-
+- iOS / Android both let you create GATT servers. Communicate with your phone from your web page.
+- Communicate with your BTLE enabled sensors/products from a webpage (sync your fitbit without a phone).
